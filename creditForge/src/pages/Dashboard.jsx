@@ -243,12 +243,14 @@ export default function Dashboard() {
             <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-sm overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center">
                     <h2 className="text-lg font-semibold text-white">Recent Loan Applications</h2>
-                    <button
-                        onClick={() => navigate('/new-application')}
-                        className="text-sm text-brand-blue hover:text-blue-400 font-medium transition-colors"
-                    >
-                        + New
-                    </button>
+                    {hasPermission('create') && (
+                        <button
+                            onClick={() => navigate('/new-application')}
+                            className="text-sm text-brand-blue hover:text-blue-400 font-medium transition-colors"
+                        >
+                            + New
+                        </button>
+                    )}
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-slate-400">

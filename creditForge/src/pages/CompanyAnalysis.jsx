@@ -7,9 +7,10 @@ import {
 import {
     Building2, AlertTriangle, FileWarning,
     Wallet, ArrowUpRight, ArrowDownRight, Activity, Loader2,
-    AlertCircle, ArrowLeft, RefreshCw, CheckCircle2, Pencil, X
+    AlertCircle, ArrowLeft, RefreshCw, CheckCircle2, Pencil, X, Eye
 } from 'lucide-react';
 import { analysisAPI, applicationsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function Skeleton({ className = '' }) {
@@ -343,6 +344,8 @@ function EditFinancialsModal({ analysis, onClose, onSave, saving, onReset, reset
 export default function CompanyAnalysis() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isViewer = user?.role === 'VIEWER';
 
     const [app, setApp] = useState(null);
     const [analysis, setAnalysis] = useState(null);
@@ -571,8 +574,14 @@ export default function CompanyAnalysis() {
                             </div>
                         </div>
                     )}
+                    {isViewer && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                            <Eye className="h-3.5 w-3.5" /> Read-Only View
+                        </span>
+                    )}
                     <div className="flex gap-2">
-                        {analysis && (
+                        {/* Edit Financials — hidden for VIEWER */}
+                        {analysis && !isViewer && (
                             <button
                                 onClick={() => setOverrideModalOpen(true)}
                                 className="px-4 py-2.5 bg-amber-600/20 border border-amber-500/30 hover:bg-amber-600/30 text-amber-300 rounded-lg transition-all text-sm font-semibold flex items-center gap-2"
@@ -580,7 +589,8 @@ export default function CompanyAnalysis() {
                                 <Pencil className="h-4 w-4" /> Edit Financials
                             </button>
                         )}
-                        {analysis && (
+                        {/* Re-Run Analysis — hidden for VIEWER */}
+                        {analysis && !isViewer && (
                             <button
                                 onClick={handleRerun}
                                 disabled={rerunning}

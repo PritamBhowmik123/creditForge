@@ -53,11 +53,8 @@ const getApplications = async (req, res, next) => {
     const where = {};
     if (status) where.status = status;
     if (sector) where.sector = sector;
-
-    // VIEWERs only see their own applications; ADMIN and ANALYST see all
-    if (req.user.role === 'VIEWER') {
-      where.userId = req.user.id;
-    }
+    // VIEWER, ANALYST, and ADMIN all see the full portfolio (read-only access
+    // for VIEWER is enforced in the UI and on mutating routes via authorize()).
 
     const [applications, total] = await Promise.all([
       prisma.application.findMany({
@@ -110,10 +107,8 @@ const getApplication = async (req, res, next) => {
       return res.status(404).json({ error: 'Application not found' });
     }
 
-    // Only VIEWER role is blocked from accessing other users' applications
-    if (req.user.role === 'VIEWER' && application.userId !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // All authenticated roles (ADMIN, ANALYST, VIEWER) can read any application.
+    // Write operations (upload, rerun, override) are guarded by authorize() on their own routes.
 
     res.json({ application });
   } catch (error) {
