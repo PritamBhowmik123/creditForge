@@ -35,7 +35,7 @@ class RiskService {
     const sectorScore = this.calculateSectorScore(application.sector, settings?.sectorRiskConfig);
 
     // Calculate composite score
-    const compositeScore = (
+    let compositeScore = (
       (revenueStability * weights.revenueWeight) +
       (debtRatio * weights.debtWeight) +
       (litigationScore * weights.litigationWeight) +
@@ -61,17 +61,37 @@ class RiskService {
     // Identify deductions
     const deductions = this.identifyDeductions(companyAnalysis, aiResearch);
 
+    // ── Hard-reject override: force score into REJECT zone for critical distress ──────────
+    const hardRejectConditions = [];
+    if (companyAnalysis?.netWorth < 0) {
+      hardRejectConditions.push('Negative Net Worth');
+      deductions.unshift({ factor: 'Negative Net Worth', points: 35, reason: `Net worth is negative (₹${companyAnalysis.netWorth} Cr) — insolvency risk` });
+    }
+    if (companyAnalysis?.netProfit !== null && companyAnalysis?.netProfit !== undefined && companyAnalysis.netProfit < -500) {
+      hardRejectConditions.push('Catastrophic Net Loss');
+      deductions.unshift({ factor: 'Catastrophic Net Loss', points: 30, reason: `Net loss of ₹${Math.abs(companyAnalysis.netProfit)} Cr` });
+    }
+    if (companyAnalysis?.debtToEquity && parseFloat(companyAnalysis.debtToEquity) > 15) {
+      hardRejectConditions.push('Extreme D/E Ratio');
+    }
+    // 2+ critical signals = force REJECT
+    if (hardRejectConditions.length >= 2) compositeScore = Math.min(compositeScore, 22);
+    else if (hardRejectConditions.length === 1) compositeScore = Math.min(compositeScore, 32);
+
+    // Recalculate risk level after potential override
+    const finalRiskLevel = this.getRiskLevel(compositeScore, settings);
+
     // Generate recommendation
     const { recommendation, reason } = this.generateRecommendation(
       compositeScore,
-      riskLevel,
+      finalRiskLevel,
       deductions,
       settings
     );
 
     return {
       compositeScore: parseFloat(compositeScore.toFixed(2)),
-      riskLevel,
+      riskLevel: finalRiskLevel,
       revenueStability: parseFloat(revenueStability.toFixed(2)),
       debtRatio: parseFloat(debtRatio.toFixed(2)),
       litigationScore: parseFloat(litigationScore.toFixed(2)),
@@ -96,21 +116,28 @@ class RiskService {
   calculateRevenueStability(companyAnalysis) {
     if (!companyAnalysis) return 50;
 
-    let score = 70; // Base score
+    let score = 50; // Base = 50 (neutral), not 70
 
     // Revenue growth bonus/penalty
-    if (companyAnalysis.revenueGrowth) {
-      if (companyAnalysis.revenueGrowth > 20) score += 15;
-      else if (companyAnalysis.revenueGrowth > 10) score += 10;
-      else if (companyAnalysis.revenueGrowth > 5) score += 5;
-      else if (companyAnalysis.revenueGrowth < -10) score -= 20;
+    if (companyAnalysis.revenueGrowth !== null && companyAnalysis.revenueGrowth !== undefined) {
+      if (companyAnalysis.revenueGrowth > 20) score += 20;
+      else if (companyAnalysis.revenueGrowth > 10) score += 12;
+      else if (companyAnalysis.revenueGrowth > 5) score += 6;
+      else if (companyAnalysis.revenueGrowth > 0) score += 2;
+      else if (companyAnalysis.revenueGrowth < -30) score -= 35; // catastrophic decline
+      else if (companyAnalysis.revenueGrowth < -20) score -= 25;
+      else if (companyAnalysis.revenueGrowth < -10) score -= 18;
       else if (companyAnalysis.revenueGrowth < 0) score -= 10;
     }
 
-    // Profitability
-    if (companyAnalysis.ebitdaMargin) {
-      if (companyAnalysis.ebitdaMargin > 20) score += 10;
-      else if (companyAnalysis.ebitdaMargin > 10) score += 5;
+    // Profitability — net loss is critical
+    if (companyAnalysis.netProfit !== null && companyAnalysis.netProfit !== undefined) {
+      if (companyAnalysis.netProfit < 0) score -= 20;  // net loss
+    }
+    if (companyAnalysis.ebitdaMargin !== null && companyAnalysis.ebitdaMargin !== undefined) {
+      if (companyAnalysis.ebitdaMargin > 20) score += 12;
+      else if (companyAnalysis.ebitdaMargin > 10) score += 6;
+      else if (companyAnalysis.ebitdaMargin < 0) score -= 20;  // negative EBITDA
       else if (companyAnalysis.ebitdaMargin < 5) score -= 10;
     }
 
@@ -128,17 +155,24 @@ class RiskService {
   calculateDebtScore(companyAnalysis) {
     if (!companyAnalysis) return 50;
 
-    let score = 70;
+    let score = 60;
 
-    // Debt to Equity ratio
-    if (companyAnalysis.debtToEquity) {
+    // Debt to Equity ratio — hard penalties for extreme values
+    if (companyAnalysis.debtToEquity !== null && companyAnalysis.debtToEquity !== undefined) {
       const de = parseFloat(companyAnalysis.debtToEquity);
-      if (de < 0.5) score += 20;
-      else if (de < 1.0) score += 10;
-      else if (de < 1.5) score += 0;
+      if (de < 0.5) score += 25;
+      else if (de < 1.0) score += 15;
+      else if (de < 1.5) score += 5;
       else if (de < 2.0) score -= 10;
       else if (de < 3.0) score -= 20;
-      else score -= 30;
+      else if (de < 5.0) score -= 35;
+      else if (de < 10.0) score -= 50;
+      else score -= 60; // catastrophic D/E > 10
+    }
+
+    // Negative net worth = instant floor
+    if (companyAnalysis.netWorth !== null && companyAnalysis.netWorth !== undefined) {
+      if (companyAnalysis.netWorth < 0) score = Math.min(score, 10);
     }
 
     // Current ratio
@@ -153,6 +187,7 @@ class RiskService {
     if (companyAnalysis.interestCoverage) {
       if (companyAnalysis.interestCoverage > 3) score += 10;
       else if (companyAnalysis.interestCoverage < 1.5) score -= 20;
+      else if (companyAnalysis.interestCoverage < 0) score -= 30;
     }
 
     return Math.max(0, Math.min(100, score));
@@ -240,12 +275,12 @@ class RiskService {
     // Merge DB config over defaults so admins can override any sector
     const effectiveMultipliers = { ...defaultMultipliers, ...configMultipliers };
     const multiplier = effectiveMultipliers[sector] ?? 1.0;
-    
+
     // Base score of 75, adjusted by multiplier
     // Lower multiplier = higher score (less risky), higher multiplier = lower score (more risky)
     const baseScore = 75;
     const adjustedScore = baseScore / multiplier;
-    
+
     return Math.max(0, Math.min(100, adjustedScore));
   }
 

@@ -42,9 +42,22 @@ class PDFService {
    */
   _parseNumber(raw) {
     if (raw === null || raw === undefined) return null;
-    const cleaned = String(raw).replace(/,/g, '');
-    const n = parseFloat(cleaned);
-    return isNaN(n) ? null : n;
+    let stringVal = String(raw).replace(/,/g, '').trim();
+
+    // Handle accounting negative format: (1234.56)
+    let isNegative = false;
+    if (stringVal.startsWith('(') && stringVal.endsWith(')')) {
+      isNegative = true;
+      stringVal = stringVal.slice(1, -1);
+    } else if (stringVal.startsWith('-')) {
+      isNegative = true;
+      stringVal = stringVal.slice(1);
+    }
+
+    let n = parseFloat(stringVal);
+    if (isNaN(n)) return null;
+
+    return isNegative ? -n : n;
   }
 
   /**
@@ -76,7 +89,7 @@ class PDFService {
     return new RegExp(
       `(?:${escaped})[^\\d]{0,80}?` +               // keyword, then up to 80 non-digit chars gap
       `(?:rs\\.?|inr|₹)?[\\s]*` +                   // optional currency prefix
-      `([0-9][0-9,]*(?:\\.[0-9]+)?)` +              // THE NUMBER (captured)
+      `(\\({0,1}-?[0-9][0-9,]*(?:\\.[0-9]+)?\\){0,1})` + // THE NUMBER (captured, allows minus/parens)
       `\\s*` +
       `(crores?|crore|cr\\b|lakhs?|lac|million|thousand|k)?`, // optional unit
       'gi'
@@ -96,7 +109,7 @@ class PDFService {
       let m;
       while ((m = pattern.exec(text)) !== null) {
         const num = this._parseNumber(m[1]);
-        if (num === null || num <= 0) continue;
+        if (num === null || isNaN(num)) continue; // Allow negative values
 
         const unit = m[2] || '';
         const mult = this._unitMultiplier(unit);

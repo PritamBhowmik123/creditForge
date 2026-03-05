@@ -75,12 +75,15 @@ export default function NewApplication() {
 
         try {
             // Step 1: Create application
+            // loanAmount field is in Crores (UI label says "₹ in Cr")
+            // Backend validates min: 100000 (raw rupees), so convert Cr → ₹
+            const loanAmountInRupees = parseFloat(form.loanAmount) * 10_000_000;
             const createRes = await applicationsAPI.create({
                 companyName: form.companyName,
                 pan: form.pan.toUpperCase().trim(),
                 gstin: form.gstin || undefined,
                 cin: form.cin || undefined,
-                loanAmount: parseFloat(form.loanAmount),
+                loanAmount: loanAmountInRupees,
                 loanPurpose: form.loanPurpose,
                 sector: form.sector,
             });
@@ -201,8 +204,8 @@ export default function NewApplication() {
                                 >
                                     <div className="flex items-center space-x-4">
                                         <div className={`p-2.5 rounded-lg transition-all border ${files[doc.type]
-                                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                                : 'bg-slate-950 text-slate-400 border-slate-800 group-hover:bg-brand-blue/20 group-hover:text-brand-blue group-hover:border-brand-blue/30'
+                                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                            : 'bg-slate-950 text-slate-400 border-slate-800 group-hover:bg-brand-blue/20 group-hover:text-brand-blue group-hover:border-brand-blue/30'
                                             }`}>
                                             {files[doc.type] ? <CheckCircle className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
                                         </div>

@@ -14,10 +14,11 @@ const createApplication = async (req, res, next) => {
   try {
     const { companyName, pan, gstin, cin, loanAmount, loanPurpose, sector } = req.body;
 
+
     // Generate unique application number — find the highest existing number and increment
     const year = new Date().getFullYear();
     const prefix = `CRF${year}`;
-    
+
     const lastApplication = await prisma.application.findFirst({
       where: {
         applicationNo: {
@@ -37,8 +38,15 @@ const createApplication = async (req, res, next) => {
       const lastNumber = parseInt(lastApplication.applicationNo.substring(prefix.length));
       nextNumber = lastNumber + 1;
     }
-    
-    const applicationNo = `${prefix}${String(nextNumber).padStart(6, '0')}`;
+
+
+
+    // Generate unique application number using timestamp + random suffix
+    // Avoids the count+1 race condition (Prisma P2002 on applicationNo)
+    const ts = Date.now().toString().slice(-6);   // last 6 digits of epoch ms
+    const rnd = Math.floor(Math.random() * 900 + 100); // 3-digit random
+    const applicationNo = `CRF${new Date().getFullYear()}${ts}${rnd}`;
+
 
     const application = await prisma.application.create({
       data: {
@@ -317,8 +325,17 @@ const analyzeApplication = async (req, res, next) => {
     const aiResearchData = await researchService.analyzeCompany(
       appCheck.companyName,
       appCheck.pan,
+      appCheck.cin || null,
+      appCheck.sector || null,
       appCheck.documents
     );
+
+    // ── Save AIResearch OUTSIDE the transaction (research fetch + save can take >5s) ────────
+    const aiResearchRecord = await prisma.aIResearch.upsert({
+      where: { applicationId: id },
+      create: { applicationId: id, ...aiResearchData },
+      update: { ...aiResearchData },
+    });
 
     // ── Everything that writes to DB goes inside the transaction ──────────────────────────
     const result = await prisma.$transaction(async (tx) => {
@@ -331,13 +348,6 @@ const analyzeApplication = async (req, res, next) => {
 
       // Step 2: Load documents fresh inside tx
       const docs = await tx.document.findMany({ where: { applicationId: id } });
-
-      // Step 3: Upsert AIResearch
-      const aiResearchRecord = await tx.aIResearch.upsert({
-        where: { applicationId: id },
-        create: { applicationId: id, ...aiResearchData },
-        update: { ...aiResearchData },
-      });
 
       // Step 4: Build financial data from uploaded documents
       const financialDoc = docs.find(
@@ -444,22 +454,7 @@ const analyzeApplication = async (req, res, next) => {
         },
       });
 
-      // Step 8: Generate CAM report
-      const camData = await camService.generateCAMReport(
-        appCheck,
-        companyAnalysisRecord,
-        aiResearchRecord,
-        riskScoreRecord
-      );
-
-      // Step 9: Upsert CamReport
-      const camReportRecord = await tx.camReport.upsert({
-        where: { applicationId: id },
-        create: { applicationId: id, ...camData },
-        update: { ...camData, pdfGenerated: false, pdfPath: null }, // re-run invalidates old PDF
-      });
-
-      // Step 10: Determine final application status from risk recommendation
+      // Step 8: Determine final application status from risk recommendation
       const score = riskScoreData.compositeScore;
       const autoApprove = settings?.autoApprovalScore ?? 75;
       const autoReject = settings?.autoRejectScore ?? 30;
@@ -468,7 +463,7 @@ const analyzeApplication = async (req, res, next) => {
       if (score >= autoApprove) finalStatus = 'APPROVED';
       else if (score <= autoReject) finalStatus = 'REJECTED';
 
-      // Step 11: Update application with final status and score
+      // Step 9: Update application with final status and score
       const updatedApp = await tx.application.update({
         where: { id },
         data: {
@@ -481,15 +476,40 @@ const analyzeApplication = async (req, res, next) => {
       return {
         application: updatedApp,
         companyAnalysis: companyAnalysisRecord,
-        aiResearch: aiResearchRecord,
         riskScore: riskScoreRecord,
-        camReport: camReportRecord,
       };
     }); // end $transaction
 
+    // ── OUTSIDE TRANSACTION (Slow operations) ──
+
+    // Merge in-memory allArticles for the runtime response/CAM
+    const completeAiResearchRecord = {
+      ...aiResearchRecord,
+      allArticles: aiResearchData.allArticles
+    };
+
+    // Step 11: Generate CAM report (calls external ML service)
+    const camData = await camService.generateCAMReport(
+      appCheck,
+      result.companyAnalysis,
+      completeAiResearchRecord,
+      result.riskScore
+    );
+
+    // Step 12: Upsert CamReport
+    const camReportRecord = await prisma.camReport.upsert({
+      where: { applicationId: id },
+      create: { applicationId: id, ...camData },
+      update: { ...camData, pdfGenerated: false, pdfPath: null }, // re-run invalidates old PDF
+    });
+
     res.json({
       message: 'Analysis completed successfully',
-      ...result,
+      application: result.application,
+      companyAnalysis: result.companyAnalysis,
+      aiResearch: completeAiResearchRecord,
+      riskScore: result.riskScore,
+      camReport: camReportRecord,
     });
   } catch (error) {
     console.error('[Analyze] Pipeline error:', error.message);
@@ -587,8 +607,25 @@ const rerunAnalysis = async (req, res, next) => {
     const aiResearchData = await researchService.analyzeCompany(
       appCheck.companyName,
       appCheck.pan,
+      appCheck.cin || null,
+      appCheck.sector || null,
       appCheck.documents
     );
+
+    // ── Save AIResearch OUTSIDE the transaction (can take >5s) ──────────────────────────────
+    const existingResearchBefore = await prisma.aIResearch.findUnique({ where: { applicationId: id } });
+    let aiResearchRecord;
+    if (existingResearchBefore) {
+      aiResearchRecord = await prisma.aIResearch.update({
+        where: { applicationId: id },
+        data: { ...aiResearchData },
+      });
+    } else {
+      aiResearchRecord = await prisma.aIResearch.create({
+        data: { applicationId: id, ...aiResearchData },
+      });
+    }
+    console.log('[RerunAnalysis] AIResearch saved outside transaction ✅');
 
     // Everything that writes to DB goes inside the transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -601,22 +638,6 @@ const rerunAnalysis = async (req, res, next) => {
 
       // Load documents fresh inside tx
       const docs = await tx.document.findMany({ where: { applicationId: id } });
-
-      // Update AIResearch (NOT upsert — record must already exist from initial run)
-      const existingResearch = await tx.aIResearch.findUnique({ where: { applicationId: id } });
-      let aiResearchRecord;
-      if (existingResearch) {
-        aiResearchRecord = await tx.aIResearch.update({
-          where: { applicationId: id },
-          data: { ...aiResearchData },
-        });
-      } else {
-        // Fallback: create if somehow missing
-        aiResearchRecord = await tx.aIResearch.create({
-          data: { applicationId: id, ...aiResearchData },
-        });
-      }
-      console.log('[RerunAnalysis] AIResearch updated');
 
       // Build financial data from uploaded documents
       const financialDoc = docs.find(
@@ -769,28 +790,6 @@ const rerunAnalysis = async (req, res, next) => {
       }
       console.log('[RerunAnalysis] RiskScore updated, compositeScore:', riskScoreData.compositeScore);
 
-      // Regenerate CAM report
-      const camData = await camService.generateCAMReport(
-        appCheck,
-        companyAnalysisRecord,
-        aiResearchRecord,
-        riskScoreRecord
-      );
-
-      const existingCam = await tx.camReport.findUnique({ where: { applicationId: id } });
-      let camReportRecord;
-      if (existingCam) {
-        camReportRecord = await tx.camReport.update({
-          where: { applicationId: id },
-          data: { ...camData, pdfGenerated: false, pdfPath: null },
-        });
-      } else {
-        camReportRecord = await tx.camReport.create({
-          data: { applicationId: id, ...camData },
-        });
-      }
-      console.log('[RerunAnalysis] CamReport updated');
-
       // Determine final status from score
       const score = riskScoreData.compositeScore;
       const autoApprove = settings?.autoApprovalScore ?? 75;
@@ -814,11 +813,33 @@ const rerunAnalysis = async (req, res, next) => {
       return {
         application: updatedApp,
         companyAnalysis: companyAnalysisRecord,
-        aiResearch: aiResearchRecord,
         riskScore: riskScoreRecord,
-        camReport: camReportRecord,
       };
     }); // end $transaction
+
+    // ── OUTSIDE TRANSACTION ──
+
+    // Merge in-memory allArticles back
+    const completeAiResearchRecord = {
+      ...aiResearchRecord,
+      allArticles: aiResearchData.allArticles
+    };
+
+    // 2. Generate CAM report (HTTP call outside transaction)
+    const camData = await camService.generateCAMReport(
+      appCheck,
+      result.companyAnalysis,
+      completeAiResearchRecord,
+      result.riskScore
+    );
+
+    // 3. Upsert CamReport
+    const camReportRecord = await prisma.camReport.upsert({
+      where: { applicationId: id },
+      create: { applicationId: id, ...camData },
+      update: { ...camData, pdfGenerated: false, pdfPath: null },
+    });
+    console.log(`[RerunAnalysis] UPSERTED CamReport for app ${id} (outside tx)`);
 
     res.json({
       message: 'Re-run analysis completed successfully',

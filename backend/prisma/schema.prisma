@@ -181,6 +181,7 @@ model AIResearch {
   
   negativeNews          Int         @default(0)
   newsDetails           Json?       // Array of news items
+  allArticles           Json?       // All fetched articles for display (Google News + Indian Finance RSS)
   
   // Sentiment Analysis
   overallSentiment      String?     // POSITIVE, NEUTRAL, NEGATIVE

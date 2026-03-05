@@ -30,6 +30,17 @@ const HighlightRiskWords = ({ text = '' }) => {
     );
 };
 
+// Strip HTML tags and decode HTML entities from RSS feed descriptions
+const stripHtml = (html = '') => {
+    if (!html) return '';
+    return html
+        .replace(/&lt;[^&]*&gt;/g, '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+};
+
 function SentimentBadge({ label, score }) {
     const color = label === 'POSITIVE'
         ? 'bg-emerald-500/20 text-emerald-400'
@@ -59,7 +70,7 @@ export default function AIResearch() {
             setError(null);
             try {
                 const res = await analysisAPI.getAIResearch(id);
-                setResearch(res.data.aiResearch ?? res.data);
+                setResearch(res.data.research ?? res.data.aiResearch ?? res.data);
             } catch (err) {
                 setError(err.response?.data?.error || 'Failed to load AI research data.');
             } finally {
@@ -74,6 +85,8 @@ export default function AIResearch() {
     const regulatory = research?.regulatoryDetails ?? [];
     const directorItems = research?.directorDetails ?? [];
     const newsItems = research?.newsDetails ?? [];
+    const allArticles = research?.allArticles ?? [];
+    const displayArticles = allArticles.length > 0 ? allArticles : newsItems;
     const redFlags = research?.redFlags ?? [];
     const totalRisk = (research?.litigationCount ?? 0) + (research?.regulatoryIssues ?? 0) + (research?.negativeNews ?? 0);
     const sentiment = research?.overallSentiment ?? 'NEUTRAL';
@@ -168,39 +181,59 @@ export default function AIResearch() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Col */}
                 <div className="space-y-6">
-                    {/* News & NLP */}
+                    {/* NLP Sentiment & News Coverage */}
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-[50px] pointer-events-none" />
                         <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2 relative z-10">
                             <Newspaper className="h-5 w-5 text-brand-blue" />
-                            NLP Sentiment Analysis (News)
+                            News Coverage
+                            {displayArticles.length > 0 && (
+                                <span className="ml-2 text-xs font-bold bg-brand-blue/20 text-brand-blue px-2 py-0.5 rounded-full">
+                                    {displayArticles.length} articles
+                                </span>
+                            )}
                         </h2>
 
-                        {newsItems.length === 0 ? (
-                            <p className="text-slate-500 text-sm relative z-10">No negative news articles found for this company.</p>
+                        {displayArticles.length === 0 ? (
+                            <p className="text-slate-500 text-sm relative z-10">No news articles found. Try re-running analysis.</p>
                         ) : (
-                            <div className="space-y-4 relative z-10">
-                                {newsItems.map((news, idx) => (
-                                    <div key={idx} className="p-4 rounded-xl border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/60 transition-colors">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="text-xs font-medium text-slate-400">{news.source} • {news.date ? new Date(news.date).toLocaleDateString('en-IN') : ''}</span>
-                                            {news.url && (
-                                                <a href={news.url} target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:text-blue-400">
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </a>
-                                            )}
+                            <div className="space-y-3 relative z-10 max-h-96 overflow-y-auto pr-1">
+                                {displayArticles.map((article, idx) => {
+                                    const text = ((article.title || article.headline || '') + ' ' + (article.description || article.summary || '')).toLowerCase();
+                                    const isNeg = ['fraud', 'default', 'loss', 'penalty', 'raid', 'ed ', 'nclt', 'lawsuit', 'bankrupt', 'scam', 'npa'].some(w => text.includes(w));
+                                    const isPos = ['profit', 'growth', 'award', 'expansion', 'record', 'win', 'strong', 'upgrade'].some(w => text.includes(w));
+                                    const border = isNeg ? 'border-red-500/30 bg-red-500/5' : isPos ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-slate-700/50 bg-slate-800/30';
+                                    const dot = isNeg ? 'bg-red-400' : isPos ? 'bg-emerald-400' : 'bg-slate-500';
+                                    return (
+                                        <div key={idx} className={`p-3.5 rounded-xl border ${border} hover:opacity-90 transition-opacity`}>
+                                            <div className="flex items-start gap-2.5">
+                                                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dot}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <p className="text-sm text-slate-200 font-medium leading-snug">
+                                                            {article.title || article.headline}
+                                                        </p>
+                                                        {(article.url) && (
+                                                            <a href={article.url} target="_blank" rel="noopener noreferrer"
+                                                                className="text-brand-blue hover:text-blue-400 shrink-0 mt-0.5">
+                                                                <ExternalLink className="h-3.5 w-3.5" />
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 mt-1">
+                                                        {article.source} {article.publishedAt || article.date ? '• ' + new Date(article.publishedAt || article.date).toLocaleDateString('en-IN') : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className="text-sm text-slate-200 leading-relaxed font-medium">
-                                            {news.headline || news.summary}
-                                        </p>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
 
-                        <div className="mt-6 pt-5 border-t border-slate-800 flex items-center justify-between">
+                        <div className="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between">
                             <p className="text-xs text-slate-500 font-medium">
-                                Sources: {(research?.sources ?? []).join(', ') || 'GNews / Economic Times RSS'}
+                                Sources: {(research?.sources ?? []).slice(0, 5).join(', ') || 'Google News / Indian Finance RSS'}
                             </p>
                             <div className="flex items-center space-x-2">
                                 <span className="text-xs font-semibold text-slate-400">Sentiment:</span>
@@ -230,14 +263,17 @@ export default function AIResearch() {
                                                 {item.status || 'Reported'}
                                             </span>
                                         </div>
-                                        <div className="pl-2">
-                                            <p className="text-xs text-slate-400 font-medium mb-1">
+                                        <div className="pl-2 min-w-0 overflow-hidden">
+                                            <p className="text-xs text-slate-400 font-medium mb-1 break-words">
                                                 {item.headline}
                                             </p>
-                                            <p className="text-sm text-slate-200 leading-relaxed">{item.description}</p>
+                                            <p className="text-sm text-slate-200 leading-relaxed break-words line-clamp-3">
+                                                {stripHtml(item.description)}
+                                            </p>
                                             {item.url && (
-                                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-blue hover:underline mt-1 inline-block">
-                                                    Source →
+                                                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                                    className="text-xs text-brand-blue hover:underline mt-2 inline-flex items-center gap-1">
+                                                    Source <ExternalLink className="h-3 w-3" />
                                                 </a>
                                             )}
                                         </div>
@@ -316,9 +352,9 @@ export default function AIResearch() {
                             <div className="flex flex-wrap gap-2">
                                 {research.riskKeywords.slice(0, 20).map((kw, i) => (
                                     <span key={i} className={`text-xs px-2 py-1 rounded border font-medium ${kw.severity === 'CRITICAL' ? 'bg-red-900/30 text-red-400 border-red-500/30' :
-                                            kw.severity === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                kw.severity === 'MEDIUM' ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow/20' :
-                                                    'bg-slate-800 text-slate-400 border-slate-700'
+                                        kw.severity === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                            kw.severity === 'MEDIUM' ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow/20' :
+                                                'bg-slate-800 text-slate-400 border-slate-700'
                                         }`}>
                                         {kw.keyword} ×{kw.count}
                                     </span>

@@ -751,8 +751,22 @@ export default function CompanyAnalysis() {
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                         <XAxis dataKey="year" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                        <RechartsTooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '0.5rem', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }} />
+                                        <YAxis
+                                            stroke="#64748b"
+                                            fontSize={12}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickFormatter={(v) => {
+                                                if (v === 0) return '0';
+                                                if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(1)}K`;
+                                                if (Math.abs(v) >= 1) return parseFloat(v.toFixed(1)).toString();
+                                                return parseFloat(v.toPrecision(2)).toString();
+                                            }}
+                                        />
+                                        <RechartsTooltip
+                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '0.5rem', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                                            formatter={(value, name) => [`₹ ${parseFloat(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })} Cr`, name === 'revenue' ? 'Revenue' : 'EBITDA']}
+                                        />
                                         <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
                                         <Area type="monotone" dataKey="ebitda" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorEbitda)" />
                                     </AreaChart>

@@ -1,0 +1,18 @@
+Date,Description,Debit (₹),Credit (₹),Balance (₹)
+01-Apr-2023,Opening Balance,,,1200000000
+05-Apr-2023,Customer Payment - Jio,,,850000000
+10-Apr-2023,GST Payment,-42000000,,808000000
+15-Apr-2023,Customer Payment - Retail,,,620000000
+20-Apr-2023,Vendor Payment,-180000000,,1248000000
+25-Apr-2023,Customer Payment - Petrochem,,,940000000
+30-Apr-2023,Salary Disbursement,-95000000,,2093000000
+05-May-2023,Customer Payment - Exports,,,1120000000
+10-May-2023,Loan EMI Payment,-28000000,,3185000000
+15-May-2023,Customer Payment - Media,,,480000000
+20-May-2023,Capital Expenditure,-250000000,,3415000000
+25-May-2023,Customer Payment - Jio Digital,,,760000000
+31-May-2023,Total Credits for Period,,9015300000,
+SUMMARY,,,,
+Total Credits (Annual),,,901530000000,
+Total Debits (Annual),-815200000000,,,
+Average Monthly Balance,,,75127500000,

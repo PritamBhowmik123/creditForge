@@ -45,6 +45,19 @@ async function validateSchema() {
             console.log('[SchemaSync] ✅ applicationId unique constraint verified.');
         }
 
+        // 3. Verify allArticles column in ai_research table (no migration needed)
+        const aiCols = await prisma.$queryRaw`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'ai_research' AND column_name = 'allArticles';
+    `;
+        if (aiCols.length === 0) {
+            console.log('[SchemaSync] allArticles column missing in ai_research. Adding it automatically...');
+            await prisma.$executeRawUnsafe(`ALTER TABLE "ai_research" ADD COLUMN "allArticles" JSONB;`);
+            console.log('[SchemaSync] ✅ Added allArticles column to ai_research.');
+        } else {
+            console.log('[SchemaSync] ✅ allArticles column verified in ai_research.');
+        }
+
         // 3. Extra safety: Check if Prisma schema model matches DB (Specifically checking Prisma DMMF)
         const dmmf = Prisma.dmmf;
         const companyAnalysisModel = dmmf.datamodel.models.find(m => m.name === 'CompanyAnalysis');
