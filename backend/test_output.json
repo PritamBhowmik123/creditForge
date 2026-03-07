@@ -1,0 +1,30 @@
+{
+  "t1": {
+    "adjustment": -2,
+    "label": "NEUTRAL_RISK",
+    "explanation": "Primary Insight Analysis: Credit officer field notes present. Standard qualitative risk deduction applied. Risk Adjustment: -2 points (score reduced).",
+    "signals": []
+  },
+  "t2": {
+    "adjustment": -2,
+    "label": "NEUTRAL_RISK",
+    "explanation": "Primary Insight Analysis: Credit officer field notes present. Standard qualitative risk deduction applied. Risk Adjustment: -2 points (score reduced).",
+    "signals": []
+  },
+  "t3": {
+    "adjustment": -3,
+    "label": "MODERATE_RISK",
+    "explanation": "Primary Insight Analysis detected 1 moderate risk indicator(s): \"new management\". These represent transitional or temporary operational changes. Risk Adjustment: -3 points (score reduced).",
+    "signals": [
+      {
+        "type": "MODERATE",
+        "excerpt": "new management"
+      }
+    ]
+  },
+  "t4": {
+    "adjustment": 0,
+    "label": "NO_NOTES",
+    "explanation": null
+  }
+}

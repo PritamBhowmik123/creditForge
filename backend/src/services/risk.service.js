@@ -42,17 +42,6 @@ class RiskService {
       /\bregulatory\s*(approval|clearance|pending)\b/i,
     ];
 
-    // POSITIVE signals: operational strengths
-    this.qualitativePositivePatterns = [
-      /\bnew\s*(order(s)?|contract(s)?)\b/i,
-      /\b(high|full|100%|strong)\s*utiliz/i,
-      /\bautomation\s*(upgrade|expansion|project)\b/i,
-      /\bcapacity\s*expansion\b/i,
-      /\bstrong\s*(demand|order\s*book|pipeline)\b/i,
-      /\b(record|highest)\s*(revenue|output|production)\b/i,
-      /\bexport\s*(growth|order|opportunity)\b/i,
-      /\bnew\s*(plant|facility|warehouse|unit)\b/i,
-    ];
   }
 
   // ── Qualitative NLP Analyser ──────────────────────────────────────────────────
@@ -70,10 +59,9 @@ class RiskService {
       return { adjustment: 0, label: 'NO_NOTES', explanation: null };
     }
 
-    const text = notes.trim();
+    const text = notes.trim().toLowerCase();
     let highRiskHits = 0;
     let moderateRiskHits = 0;
-    let positiveHits = 0;
     const foundSignals = [];
 
     for (const pattern of this.qualitativeHighRiskPatterns) {
@@ -90,46 +78,32 @@ class RiskService {
         if (match) foundSignals.push({ type: 'MODERATE', excerpt: match[0] });
       }
     }
-    for (const pattern of this.qualitativePositivePatterns) {
-      if (pattern.test(text)) {
-        positiveHits++;
-        const match = text.match(pattern);
-        if (match) foundSignals.push({ type: 'POSITIVE', excerpt: match[0] });
-      }
-    }
 
-    let adjustment = 0;
-    let label = 'NEUTRAL';
+    let adjustment = -2; // Default penalty for having qualitative notes
+    let label = 'NEUTRAL_RISK';
     let explanation = '';
 
     if (highRiskHits > 0) {
-      // +8 per high-risk signal, capped at +15
-      adjustment = Math.min(15, highRiskHits * 8);
+      // -8 per high-risk signal, capped at -15  (LOWERS score → higher risk)
+      adjustment = Math.max(-15, -(highRiskHits * 8));
       label = 'HIGH_RISK';
       explanation = `Primary Insight Analysis detected ${highRiskHits} operational risk signal(s) in field notes: ` +
         `${foundSignals.filter(s => s.type === 'HIGH_RISK').map(s => `"${s.excerpt}"`).join(', ')}. ` +
-        `This indicates potential operational underutilization or distress, factored as a risk increase of +${adjustment} points.`;
+        `This indicates potential operational underutilization or distress. Risk Adjustment: ${adjustment} points (score reduced).`;
     } else if (moderateRiskHits > 0) {
-      // +3 per moderate signal, capped at +7
-      adjustment = Math.min(7, moderateRiskHits * 3);
+      // -3 per moderate signal, capped at -7  (LOWERS score → moderate concern)
+      adjustment = Math.max(-7, -(moderateRiskHits * 3));
       label = 'MODERATE_RISK';
       explanation = `Primary Insight Analysis detected ${moderateRiskHits} moderate risk indicator(s): ` +
         `${foundSignals.filter(s => s.type === 'MODERATE').map(s => `"${s.excerpt}"`).join(', ')}. ` +
-        `These represent transitional or temporary operational changes, factored as a risk increase of +${adjustment} points.`;
-    } else if (positiveHits > 0) {
-      // -3 per positive signal, capped at -6
-      adjustment = Math.max(-6, -(positiveHits * 3));
-      label = 'POSITIVE';
-      explanation = `Primary Insight Analysis detected ${positiveHits} positive operational indicator(s): ` +
-        `${foundSignals.filter(s => s.type === 'POSITIVE').map(s => `"${s.excerpt}"`).join(', ')}. ` +
-        `This signals operational strength, factored as a risk reduction of ${adjustment} points.`;
+        `These represent transitional or temporary operational changes. Risk Adjustment: ${adjustment} points (score reduced).`;
     } else {
-      // Notes exist but no specific signals found — neutral, just document
-      label = 'NEUTRAL';
-      explanation = `Primary Insight Analysis: Field notes noted by credit officer. No quantifiable operational risk signals detected.`;
+      // Notes exist but no specific signals found
+      label = 'NEUTRAL_RISK';
+      explanation = `Primary Insight Analysis: Credit officer field notes present. Standard qualitative risk deduction applied. Risk Adjustment: -2 points (score reduced).`;
     }
 
-    console.log(`[RiskService] Qualitative NLP: label=${label}, adjustment=${adjustment}, highRisk=${highRiskHits}, moderate=${moderateRiskHits}, positive=${positiveHits}`);
+    console.log(`[RiskService] Qualitative NLP: label=${label}, adjustment=${adjustment}, highRisk=${highRiskHits}, moderate=${moderateRiskHits}`);
     return { adjustment, label, explanation, signals: foundSignals };
   }
 
@@ -151,6 +125,7 @@ class RiskService {
       sectorWeight: settings.sectorWeight,
     } : this.defaultWeights;
 
+    // Calculate individual factor scores (0-100, higher is better)
     // Calculate individual factor scores (0-100, higher is better)
     const revenueStability = this.calculateRevenueStability(companyAnalysis);
     const debtRatio = this.calculateDebtScore(companyAnalysis);
@@ -208,11 +183,12 @@ class RiskService {
     );
     if (qualitativeResult.adjustment !== 0) {
       compositeScore = Math.max(0, Math.min(100, compositeScore + qualitativeResult.adjustment));
-      if (qualitativeResult.adjustment > 0) {
+      // Record as a deduction when score was lowered (adjustment < 0)
+      if (qualitativeResult.adjustment < 0) {
         deductions.push({
           factor: 'Qualitative Field Insights',
-          points: qualitativeResult.adjustment,
-          reason: `${qualitativeResult.label.replace('_', ' ')}: ${qualitativeResult.explanation}`,
+          points: Math.abs(qualitativeResult.adjustment),   // deduction list uses positive display values
+          reason: `${qualitativeResult.label.replace(/_/g, ' ')}: ${qualitativeResult.explanation}`,
         });
       }
     }
@@ -247,7 +223,6 @@ class RiskService {
       capital: fiveCs.capital,
       collateral: fiveCs.collateral,
       conditions: fiveCs.conditions,
-      recommendation,
       recommendationReason: reason,
       // ── Qualitative Insight (new, additive) ──────────────────────────────────
       qualitativeLabel: qualitativeResult.label,
@@ -255,6 +230,7 @@ class RiskService {
       qualitativeInsight: qualitativeResult.explanation,
     };
   }
+
 
   /**
    * Calculate revenue stability score (0-100)
@@ -291,7 +267,6 @@ class RiskService {
     if (companyAnalysis.mismatchFlag) {
       score -= 25;
     }
-
     return Math.max(0, Math.min(100, score));
   }
 
@@ -335,7 +310,6 @@ class RiskService {
       else if (companyAnalysis.interestCoverage < 1.5) score -= 20;
       else if (companyAnalysis.interestCoverage < 0) score -= 30;
     }
-
     return Math.max(0, Math.min(100, score));
   }
 
@@ -363,7 +337,6 @@ class RiskService {
       const highFlags = aiResearch.redFlags.filter(f => f.severity === 'HIGH').length;
       score -= (criticalFlags * 15 + highFlags * 8);
     }
-
     return Math.max(0, Math.min(100, score));
   }
 
@@ -390,7 +363,6 @@ class RiskService {
     // Management quality from company analysis
     if (companyAnalysis?.managementQuality === 'EXCELLENT') score += 10;
     else if (companyAnalysis?.managementQuality === 'POOR') score -= 15;
-
     return Math.max(0, Math.min(100, score));
   }
 
@@ -426,7 +398,6 @@ class RiskService {
     // Lower multiplier = higher score (less risky), higher multiplier = lower score (more risky)
     const baseScore = 75;
     const adjustedScore = baseScore / multiplier;
-
     return Math.max(0, Math.min(100, adjustedScore));
   }
 
@@ -441,7 +412,7 @@ class RiskService {
     if (score >= highThreshold) return 'LOW';
     if (score >= mediumThreshold) return 'MEDIUM';
     if (score >= 25) return 'HIGH';
-    return 'VERY_HIGH';
+    return 'VERY_HIGH'; // Added a default return for scores below 25
   }
 
   /**

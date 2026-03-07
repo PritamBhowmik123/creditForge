@@ -56,7 +56,7 @@ class CAMService {
       aiResearch
     );
 
-    // Primary Insights Section (qualitative notes + AI analysis)
+    // Primary Risk Insights Section (qualitative notes + AI analysis)
     const primaryInsights = this.generatePrimaryInsightsSection(
       qualitativeNotes || application?.qualitativeNotes || null,
       riskScore
@@ -371,14 +371,14 @@ class CAMService {
   }
 
   /**
-   * Generate Primary Insights from Field Observations section
+   * Generate Primary Risk Insights from Field Observations section
    * Returns null (not an empty string) when there are no notes — consumers check for null.
    */
   generatePrimaryInsightsSection(qualitativeNotes, riskScore) {
     if (!qualitativeNotes || qualitativeNotes.trim().length === 0) return null;
 
     const parts = [];
-    parts.push(`PRIMARY INSIGHTS FROM FIELD OBSERVATIONS\n`);
+    parts.push(`PRIMARY RISK INSIGHTS FROM FIELD OBSERVATIONS\n`);
     parts.push(`Credit Officer Notes:\n${qualitativeNotes.trim()}\n`);
 
     if (riskScore?.qualitativeInsight) {
@@ -386,11 +386,10 @@ class CAMService {
     }
 
     if (riskScore?.qualitativeAdjustment && riskScore.qualitativeAdjustment !== 0) {
-      const sign = riskScore.qualitativeAdjustment > 0 ? '+' : '';
-      const direction = riskScore.qualitativeAdjustment > 0 ? 'increased' : 'reduced';
-      parts.push(`Risk Score Impact: score ${direction} by ${sign}${riskScore.qualitativeAdjustment} points based on primary field insights.`);
+      const direction = 'reduced';
+      parts.push(`Risk Score Impact: score ${direction} by ${Math.abs(riskScore.qualitativeAdjustment)} points based on primary field risk insights.`);
     } else {
-      parts.push(`Risk Score Impact: No quantifiable adjustment applied. Notes have been recorded for review.`);
+      parts.push(`Risk Score Impact: Field notes recorded. Standard penalty applied.`);
     }
 
     return parts.join('\n');
@@ -608,7 +607,7 @@ class CAMService {
           doc.moveDown();
         }
 
-        // Primary Insights from Field Observations (only rendered when notes exist)
+        // Primary Risk Insights from Field Observations (only rendered when notes exist)
         if (camReport.primaryInsights) {
           doc.addPage();
           this.addSection(doc, camReport.primaryInsights);
