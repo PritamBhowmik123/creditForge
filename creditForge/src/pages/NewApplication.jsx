@@ -32,6 +32,7 @@ export default function NewApplication() {
         loanAmount: '',
         loanPurpose: '',
         sector: '',
+        qualitativeNotes: '',
     });
     const [customSector, setCustomSector] = useState('');
     const [files, setFiles] = useState({}); // { [type]: File }
@@ -92,6 +93,7 @@ export default function NewApplication() {
                 loanAmount: loanAmountInRupees,
                 loanPurpose: form.loanPurpose,
                 sector: form.sector === 'Other' ? customSector.trim() : form.sector,
+                qualitativeNotes: form.qualitativeNotes.trim() || undefined,
             });
             const appId = createRes.data.application.id;
             setCreatedAppId(appId);
@@ -201,7 +203,7 @@ export default function NewApplication() {
                                     {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
                                 </select>
 
-                                {/* Custom Sector Input - Moved here to be directly under the dropdown */}
+                                {/* Custom Sector Input */}
                                 {form.sector === 'Other' && (
                                     <div className="mt-4 animate-in fade-in slide-in-from-left-2 duration-300">
                                         <label className="block text-sm font-medium text-slate-400 mb-1">Specify Sector *</label>
@@ -216,6 +218,24 @@ export default function NewApplication() {
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Qualitative Notes — spans full width below the 2-col grid */}
+                        <div className="mt-4 pt-4 border-t border-slate-800/60">
+                            <label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-2">
+                                <span>Qualitative Notes</span>
+                                <span className="text-xs font-normal px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">Optional</span>
+                            </label>
+                            <textarea
+                                name="qualitativeNotes"
+                                rows={4}
+                                value={form.qualitativeNotes}
+                                onChange={handleFormChange}
+                                disabled={isProcessing}
+                                placeholder={`Optional: Add field observations such as plant utilization, operational issues, or management insights.\nExample: Factory operating at ~40% capacity during site visit.`}
+                                className="block w-full rounded-lg border-0 bg-slate-950/80 py-2.5 px-4 text-white shadow-inner ring-1 ring-inset ring-slate-800 placeholder:text-slate-600 focus:ring-2 focus:ring-inset focus:ring-brand-blue sm:text-sm transition-all disabled:opacity-50 resize-none"
+                            />
+                            <p className="mt-1.5 text-xs text-slate-600">These field insights will be analysed by the AI risk engine to adjust the final credit score.</p>
                         </div>
                     </div>
 

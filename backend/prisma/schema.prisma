@@ -78,6 +78,7 @@ model Application {
   loanAmount        Float
   loanPurpose       String
   sector            String
+  qualitativeNotes  String?           // Optional field observations from credit officer site visits
   status            ApplicationStatus @default(DRAFT)
   aiScore           Float?
   submittedAt       DateTime?
@@ -264,6 +265,9 @@ model CamReport {
   strengthsAnalysis     String
   risksAnalysis         String
   mitigationStrategy    String?
+  
+  // Primary Field Observations — from credit officer qualitative notes
+  primaryInsights       String?           // Null when no qualitative notes were provided
   
   // Final Recommendation
   recommendation        String      // APPROVE, REJECT, CONDITIONAL

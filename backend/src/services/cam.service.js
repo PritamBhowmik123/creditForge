@@ -9,8 +9,14 @@ const path = require('path');
 class CAMService {
   /**
    * Generate CAM report content
+   * @param {*} application
+   * @param {*} companyAnalysis
+   * @param {*} aiResearch
+   * @param {*} riskScore
+   * @param {*} settings
+   * @param {string|null} qualitativeNotes - Raw credit officer field notes
    */
-  async generateCAMReport(application, companyAnalysis, aiResearch, riskScore, settings = null) {
+  async generateCAMReport(application, companyAnalysis, aiResearch, riskScore, settings = null, qualitativeNotes = null) {
     // Executive Summary
     const executiveSummary = this.generateExecutiveSummary(
       application,
@@ -50,6 +56,12 @@ class CAMService {
       aiResearch
     );
 
+    // Primary Insights Section (qualitative notes + AI analysis)
+    const primaryInsights = this.generatePrimaryInsightsSection(
+      qualitativeNotes || application?.qualitativeNotes || null,
+      riskScore
+    );
+
     // Final Recommendation
     const recommendation = this.generateFinalRecommendation(
       application,
@@ -65,6 +77,7 @@ class CAMService {
       strengthsAnalysis,
       risksAnalysis,
       mitigationStrategy,
+      primaryInsights,           // new section — null when no notes
       recommendation: recommendation.decision,
       recommendedAmount: recommendation.amount,
       recommendedTenure: recommendation.tenure,
@@ -358,6 +371,32 @@ class CAMService {
   }
 
   /**
+   * Generate Primary Insights from Field Observations section
+   * Returns null (not an empty string) when there are no notes — consumers check for null.
+   */
+  generatePrimaryInsightsSection(qualitativeNotes, riskScore) {
+    if (!qualitativeNotes || qualitativeNotes.trim().length === 0) return null;
+
+    const parts = [];
+    parts.push(`PRIMARY INSIGHTS FROM FIELD OBSERVATIONS\n`);
+    parts.push(`Credit Officer Notes:\n${qualitativeNotes.trim()}\n`);
+
+    if (riskScore?.qualitativeInsight) {
+      parts.push(`AI Analysis:\n${riskScore.qualitativeInsight}\n`);
+    }
+
+    if (riskScore?.qualitativeAdjustment && riskScore.qualitativeAdjustment !== 0) {
+      const sign = riskScore.qualitativeAdjustment > 0 ? '+' : '';
+      const direction = riskScore.qualitativeAdjustment > 0 ? 'increased' : 'reduced';
+      parts.push(`Risk Score Impact: score ${direction} by ${sign}${riskScore.qualitativeAdjustment} points based on primary field insights.`);
+    } else {
+      parts.push(`Risk Score Impact: No quantifiable adjustment applied. Notes have been recorded for review.`);
+    }
+
+    return parts.join('\n');
+  }
+
+  /**
    * Generate Mitigation Strategy
    */
   generateMitigationStrategy(riskScore, aiResearch) {
@@ -566,6 +605,13 @@ class CAMService {
         // Mitigation
         if (camReport.mitigationStrategy) {
           this.addSection(doc, camReport.mitigationStrategy);
+          doc.moveDown();
+        }
+
+        // Primary Insights from Field Observations (only rendered when notes exist)
+        if (camReport.primaryInsights) {
+          doc.addPage();
+          this.addSection(doc, camReport.primaryInsights);
           doc.moveDown();
         }
 

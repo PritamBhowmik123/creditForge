@@ -12,7 +12,7 @@ const camService = require('../services/cam.service');
  */
 const createApplication = async (req, res, next) => {
   try {
-    const { companyName, pan, gstin, cin, loanAmount, loanPurpose, sector } = req.body;
+    const { companyName, pan, gstin, cin, loanAmount, loanPurpose, sector, qualitativeNotes } = req.body;
 
 
     // Generate unique application number — find the highest existing number and increment
@@ -58,6 +58,7 @@ const createApplication = async (req, res, next) => {
         loanAmount: parseFloat(loanAmount),
         loanPurpose,
         sector,
+        qualitativeNotes: qualitativeNotes?.trim() || null,
         userId: req.user.id,
         status: 'DRAFT',
       },
@@ -407,7 +408,8 @@ const analyzeApplication = async (req, res, next) => {
         appCheck,
         companyAnalysisRecord,
         aiResearchRecord,
-        settings
+        settings,
+        appCheck.qualitativeNotes || null
       );
 
       // Step 7: Upsert RiskScore
@@ -493,7 +495,9 @@ const analyzeApplication = async (req, res, next) => {
       appCheck,
       result.companyAnalysis,
       completeAiResearchRecord,
-      result.riskScore
+      result.riskScore,
+      null,  // settings handled inside
+      appCheck.qualitativeNotes || null
     );
 
     // Step 12: Upsert CamReport
@@ -752,7 +756,8 @@ const rerunAnalysis = async (req, res, next) => {
         appCheck,
         mergedForRisk,
         aiResearchRecord,
-        settings
+        settings,
+        appCheck.qualitativeNotes || null
       );
 
       // Update RiskScore (NOT create)

@@ -12,12 +12,136 @@ class RiskService {
       promoterWeight: 0.15,
       sectorWeight: 0.20,
     };
+
+    // ── Qualitative Notes Signal Taxonomy ─────────────────────────────────────
+    // HIGH_RISK signals: indicate serious operational distress
+    this.qualitativeHighRiskPatterns = [
+      /\b(\d{1,2}|[1-3]\d)\s*%?\s*(capacity|utiliz)\b/i,  // X% capacity (low, e.g. 40% capacity)
+      /\boperating at\s*(low|minimal|\d{1,2}%)\b/i,
+      /\bidle\s*(plant|factory|production|machinery|unit)\b/i,
+      /\b(production|plant|factory|manufacturing)\s*(halt|shutdown|stopped|closed|suspended)\b/i,
+      /\bworker\s*(strike|walkout|stoppage|shortage|unrest)\b/i,
+      /\bfinancial\s*(stress|distress|crisis|strain)\b/i,
+      /\b(supply\s*chain|supply)\s*(disruption|crisis|breakdown)\b/i,
+      /\blabour\s*(shortage|dispute|unrest)\b/i,
+      /\bmachinery\s*(breakdown|failure|seized)\b/i,
+      /\bno\s*(orders|demand|customers|revenue)\b/i,
+      /\bcash\s*(crunch|flow problem)\b/i,
+    ];
+
+    // MODERATE_RISK signals: temporary or transitional issues
+    this.qualitativeModerateRiskPatterns = [
+      /\b(expansion|construction|renovation)\s*(under|in\s*progress|ongoing)\b/i,
+      /\bunder\s*construction\b/i,
+      /\btemporary\s*(slowdown|dip|decline|closure)\b/i,
+      /\bmachine\s*(upgrade|update|replacement)\b/i,
+      /\bstaffing\s*(issue|challenge|change)\b/i,
+      /\bcapacity\s*ramp/i,
+      /\bnew\s*management\b/i,
+      /\bmanagement\s*(change|transition)\b/i,
+      /\bregulatory\s*(approval|clearance|pending)\b/i,
+    ];
+
+    // POSITIVE signals: operational strengths
+    this.qualitativePositivePatterns = [
+      /\bnew\s*(order(s)?|contract(s)?)\b/i,
+      /\b(high|full|100%|strong)\s*utiliz/i,
+      /\bautomation\s*(upgrade|expansion|project)\b/i,
+      /\bcapacity\s*expansion\b/i,
+      /\bstrong\s*(demand|order\s*book|pipeline)\b/i,
+      /\b(record|highest)\s*(revenue|output|production)\b/i,
+      /\bexport\s*(growth|order|opportunity)\b/i,
+      /\bnew\s*(plant|facility|warehouse|unit)\b/i,
+    ];
+  }
+
+  // ── Qualitative NLP Analyser ──────────────────────────────────────────────────
+
+  /**
+   * Semantically analyse credit officer field notes and derive:
+   * - A numeric risk score adjustment (positive = worse, negative = better)
+   * - A human-readable explanation for CAM reports
+   *
+   * @param {string|null} notes - Raw qualitative notes text
+   * @returns {{ adjustment: number, label: string, explanation: string }}
+   */
+  analyzeQualitativeNotes(notes) {
+    if (!notes || typeof notes !== 'string' || notes.trim().length === 0) {
+      return { adjustment: 0, label: 'NO_NOTES', explanation: null };
+    }
+
+    const text = notes.trim();
+    let highRiskHits = 0;
+    let moderateRiskHits = 0;
+    let positiveHits = 0;
+    const foundSignals = [];
+
+    for (const pattern of this.qualitativeHighRiskPatterns) {
+      if (pattern.test(text)) {
+        highRiskHits++;
+        const match = text.match(pattern);
+        if (match) foundSignals.push({ type: 'HIGH_RISK', excerpt: match[0] });
+      }
+    }
+    for (const pattern of this.qualitativeModerateRiskPatterns) {
+      if (pattern.test(text)) {
+        moderateRiskHits++;
+        const match = text.match(pattern);
+        if (match) foundSignals.push({ type: 'MODERATE', excerpt: match[0] });
+      }
+    }
+    for (const pattern of this.qualitativePositivePatterns) {
+      if (pattern.test(text)) {
+        positiveHits++;
+        const match = text.match(pattern);
+        if (match) foundSignals.push({ type: 'POSITIVE', excerpt: match[0] });
+      }
+    }
+
+    let adjustment = 0;
+    let label = 'NEUTRAL';
+    let explanation = '';
+
+    if (highRiskHits > 0) {
+      // +8 per high-risk signal, capped at +15
+      adjustment = Math.min(15, highRiskHits * 8);
+      label = 'HIGH_RISK';
+      explanation = `Primary Insight Analysis detected ${highRiskHits} operational risk signal(s) in field notes: ` +
+        `${foundSignals.filter(s => s.type === 'HIGH_RISK').map(s => `"${s.excerpt}"`).join(', ')}. ` +
+        `This indicates potential operational underutilization or distress, factored as a risk increase of +${adjustment} points.`;
+    } else if (moderateRiskHits > 0) {
+      // +3 per moderate signal, capped at +7
+      adjustment = Math.min(7, moderateRiskHits * 3);
+      label = 'MODERATE_RISK';
+      explanation = `Primary Insight Analysis detected ${moderateRiskHits} moderate risk indicator(s): ` +
+        `${foundSignals.filter(s => s.type === 'MODERATE').map(s => `"${s.excerpt}"`).join(', ')}. ` +
+        `These represent transitional or temporary operational changes, factored as a risk increase of +${adjustment} points.`;
+    } else if (positiveHits > 0) {
+      // -3 per positive signal, capped at -6
+      adjustment = Math.max(-6, -(positiveHits * 3));
+      label = 'POSITIVE';
+      explanation = `Primary Insight Analysis detected ${positiveHits} positive operational indicator(s): ` +
+        `${foundSignals.filter(s => s.type === 'POSITIVE').map(s => `"${s.excerpt}"`).join(', ')}. ` +
+        `This signals operational strength, factored as a risk reduction of ${adjustment} points.`;
+    } else {
+      // Notes exist but no specific signals found — neutral, just document
+      label = 'NEUTRAL';
+      explanation = `Primary Insight Analysis: Field notes noted by credit officer. No quantifiable operational risk signals detected.`;
+    }
+
+    console.log(`[RiskService] Qualitative NLP: label=${label}, adjustment=${adjustment}, highRisk=${highRiskHits}, moderate=${moderateRiskHits}, positive=${positiveHits}`);
+    return { adjustment, label, explanation, signals: foundSignals };
   }
 
   /**
    * Calculate comprehensive risk score
+   * @param {*} application - Application record (includes qualitativeNotes)
+   * @param {*} companyAnalysis
+   * @param {*} aiResearch
+   * @param {*} settings
+   * @param {string|null} qualitativeNotes - Optional credit officer field notes
    */
-  async calculateRiskScore(application, companyAnalysis, aiResearch, settings = null) {
+  async calculateRiskScore(application, companyAnalysis, aiResearch, settings = null, qualitativeNotes = null) {
     // Get weights from settings or use defaults
     const weights = settings ? {
       revenueWeight: settings.revenueWeight,
@@ -78,20 +202,38 @@ class RiskService {
     if (hardRejectConditions.length >= 2) compositeScore = Math.min(compositeScore, 22);
     else if (hardRejectConditions.length === 1) compositeScore = Math.min(compositeScore, 32);
 
+    // ── Qualitative Notes NLP Analysis ───────────────────────────────────────────
+    const qualitativeResult = this.analyzeQualitativeNotes(
+      qualitativeNotes || application?.qualitativeNotes || null
+    );
+    if (qualitativeResult.adjustment !== 0) {
+      compositeScore = Math.max(0, Math.min(100, compositeScore + qualitativeResult.adjustment));
+      if (qualitativeResult.adjustment > 0) {
+        deductions.push({
+          factor: 'Qualitative Field Insights',
+          points: qualitativeResult.adjustment,
+          reason: `${qualitativeResult.label.replace('_', ' ')}: ${qualitativeResult.explanation}`,
+        });
+      }
+    }
+
     // Recalculate risk level after potential override
     const finalRiskLevel = this.getRiskLevel(compositeScore, settings);
+
+    // ── Recalculate after qualitative adjustment ───────────────────────────────
+    const postQualRiskLevel = this.getRiskLevel(compositeScore, settings);
 
     // Generate recommendation
     const { recommendation, reason } = this.generateRecommendation(
       compositeScore,
-      finalRiskLevel,
+      postQualRiskLevel,
       deductions,
       settings
     );
 
     return {
       compositeScore: parseFloat(compositeScore.toFixed(2)),
-      riskLevel: finalRiskLevel,
+      riskLevel: postQualRiskLevel,
       revenueStability: parseFloat(revenueStability.toFixed(2)),
       debtRatio: parseFloat(debtRatio.toFixed(2)),
       litigationScore: parseFloat(litigationScore.toFixed(2)),
@@ -107,6 +249,10 @@ class RiskService {
       conditions: fiveCs.conditions,
       recommendation,
       recommendationReason: reason,
+      // ── Qualitative Insight (new, additive) ──────────────────────────────────
+      qualitativeLabel: qualitativeResult.label,
+      qualitativeAdjustment: qualitativeResult.adjustment,
+      qualitativeInsight: qualitativeResult.explanation,
     };
   }
 
