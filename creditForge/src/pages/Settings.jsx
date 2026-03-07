@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Sliders, Calculator, PieChart, Save, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Sliders, Calculator, PieChart, Save, RefreshCw, CheckCircle, AlertCircle, Network, Globe } from 'lucide-react';
 import { settingsAPI } from '../services/api';
 
 export default function Settings() {
@@ -136,6 +136,13 @@ export default function Settings() {
         setTimeout(() => setMessage(null), 5000);
     };
 
+    const updateFactorWeight = (key, value) => {
+        setWeights(prev => ({
+            ...prev,
+            [key]: value,
+        }));
+    };
+
     const updateSectorMultiplier = (sector, value) => {
         setSectorMultipliers(prev => ({
             ...prev,
@@ -150,6 +157,12 @@ export default function Settings() {
             </div>
         );
     }
+
+    const cardStyle = {
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '16px',
+    };
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">
@@ -203,8 +216,9 @@ export default function Settings() {
                 <div className="space-y-8">
 
                     {/* Risk Thresholds */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-                        <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                    <div style={cardStyle} className="p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-[50px] pointer-events-none" />
+                        <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2 relative z-10">
                             <Sliders className="h-5 w-5 text-brand-blue" />
                             Global Risk Thresholds
                         </h2>
@@ -253,7 +267,7 @@ export default function Settings() {
                     </div>
 
                     {/* Interest Rate Engine */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                    <div style={cardStyle} className="p-6">
                         <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
                             <Calculator className="h-5 w-5 text-brand-blue" />
                             Dynamic Interest Engine
@@ -308,24 +322,51 @@ export default function Settings() {
 
                 </div>
 
-                {/* Right Col - Sector Weights */}
-                <div className="space-y-6">
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm h-full">
-                        <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                            <PieChart className="h-5 w-5 text-brand-blue" />
-                            Sector Risk Multipliers
+                {/* Right Col - Weights & Multipliers */}
+                <div className="space-y-8">
+                    {/* Scoring Factor Weights */}
+                    <div style={cardStyle} className="p-6">
+                        <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                            <Network className="h-5 w-5 text-brand-blue" />
+                            Scoring Factor Weights
                         </h2>
-                        <p className="text-sm text-slate-400 mb-6">Adjust the AI's sensitivity to macroeconomic sectoral risks. Multipliers {'>'} 1.0 penalize the score.</p>
+                        <div className="space-y-6">
+                            {Object.entries(weights).map(([key, weight]) => (
+                                <div key={key}>
+                                    <div className="flex justify-between items-center mb-2 text-sm">
+                                        <span className="text-slate-300 font-medium">{key.replace(/_/g, ' ')}</span>
+                                        <span className="text-brand-blue font-bold">{(weight * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.05"
+                                        value={weight}
+                                        onChange={(e) => updateFactorWeight(key, Number(e.target.value))}
+                                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-blue"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
-                        <div className="space-y-5">
+                    {/* Sector Specific Risk Adjustments */}
+                    <div style={cardStyle} className="p-6">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <Globe className="h-5 w-5 text-brand-blue" />
+                                Sector Specific Risk Multipliers
+                            </h2>
+                        </div>
+                        <p className="text-sm text-slate-400 mb-6 font-medium">Adjust the AI's sensitivity to macroeconomic sectoral risks. Multipliers &gt; 1.0 penalize the score.</p>
+
+                        <div className="grid grid-cols-1 gap-4">
                             {Object.entries(sectorMultipliers).map(([sector, weight]) => (
-                                <div key={sector} className="bg-slate-950 p-4 rounded-lg border border-slate-800/80 hover:border-slate-700 transition-colors">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="text-sm font-medium text-slate-200">{sector}</span>
-                                        <span className={`text-xs font-bold px-2 py-1 rounded ${weight > 1.3 ? 'bg-red-500/20 text-red-500' :
-                                            weight > 1.0 ? 'bg-amber-500/20 text-amber-500' :
-                                                'bg-emerald-500/20 text-emerald-400'
-                                            }`}>
+                                <div key={sector} className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/80">
+                                    <div className="flex justify-between items-center mb-2 text-sm">
+                                        <span className="text-slate-300">{sector}</span>
+                                        <span className={`font-bold ${weight > 1.3 ? 'text-red-500' : weight > 1.0 ? 'text-brand-yellow' : 'text-emerald-400'}`}>
                                             {weight.toFixed(2)}x
                                         </span>
                                     </div>
@@ -336,22 +377,13 @@ export default function Settings() {
                                         step="0.1"
                                         value={weight}
                                         onChange={(e) => updateSectorMultiplier(sector, Number(e.target.value))}
-                                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/50"
+                                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-blue"
                                     />
                                 </div>
                             ))}
                         </div>
-
-                        <div className="mt-6 pt-5 border-t border-slate-800 flex items-start gap-3 p-3 bg-brand-blue/5 border-l-2 border-brand-blue rounded-r-lg">
-                            <SettingsIcon className="h-5 w-5 text-brand-blue shrink-0 mt-0.5" />
-                            <p className="text-xs text-slate-300 leading-relaxed">
-                                <span className="font-bold text-white block mb-1">Impact Note:</span>
-                                Changes to sector multipliers require re-running the intelligence pipeline for all active applications in the queue to maintain portfolio consistency.
-                            </p>
-                        </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );

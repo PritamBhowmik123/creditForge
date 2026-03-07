@@ -79,7 +79,7 @@ export default function Dashboard() {
             const [statsRes, chartsRes, appsRes] = await Promise.all([
                 dashboardAPI.getStats(),
                 dashboardAPI.getCharts(),
-                applicationsAPI.getAll({ limit: 5, page: 1 }),
+                applicationsAPI.getAll({ limit: 100, page: 1 }),
             ]);
             setStats(statsRes.data);
             setCharts(chartsRes.data);
@@ -285,7 +285,7 @@ export default function Dashboard() {
                 <div className="px-6 py-4 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <div>
                         <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Recent Applications</h2>
-                        <p className="text-xs mt-0.5" style={{ color: '#475569' }}>Latest 5 loan applications</p>
+                        <p className="text-xs mt-0.5" style={{ color: '#475569' }}>Application History</p>
                     </div>
                     {hasPermission('create') && (
                         <button
@@ -299,12 +299,12 @@ export default function Dashboard() {
                         </button>
                     )}
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead>
+                <div className="overflow-x-auto overflow-y-auto max-h-[360px] custom-scrollbar">
+                    <table className="w-full text-left text-sm border-collapse">
+                        <thead className="sticky top-0 z-20" style={{ background: '#0b1120' }}>
                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                 {['Application ID', 'Entity Name', 'Sector', 'Requested Amount', 'AI Risk Score', 'Status'].map(col => (
-                                    <th key={col} className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: '#334155' }}>
+                                    <th key={col} className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest bg-[#0d1525]" style={{ color: '#334155' }}>
                                         {col}
                                     </th>
                                 ))}

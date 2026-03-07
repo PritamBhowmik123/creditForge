@@ -128,8 +128,14 @@ export default function NewApplication() {
         'Retail', 'Real Estate', 'Construction', 'Textiles', 'Metals', 'Aviation', 'Hospitality', 'Other'
     ];
 
+    const cardStyle = {
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '16px',
+    };
+
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto pb-12">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
                     <Building2 className="h-6 w-6 text-brand-blue" />
@@ -155,7 +161,8 @@ export default function NewApplication() {
                     )}
 
                     {/* Company Details */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                    <div style={cardStyle} className="p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-[50px] pointer-events-none" />
                         <h2 className="text-lg font-semibold text-white mb-6">Company Details</h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {[
@@ -213,8 +220,8 @@ export default function NewApplication() {
                     </div>
 
                     {/* Document Uploads */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm overflow-hidden relative">
-                        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-blue/30 to-transparent" />
+                    <div style={cardStyle} className="p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-[50px] pointer-events-none" />
                         <h2 className="text-lg font-semibold text-white mb-6">Document Uploads</h2>
                         <div className="space-y-4">
                             {DOCUMENT_TYPES.map((doc) => (
@@ -261,7 +268,7 @@ export default function NewApplication() {
 
                 {/* Right — Pipeline Status */}
                 <div className="lg:col-span-1">
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm sticky top-8">
+                    <div style={cardStyle} className="p-6 sticky top-8">
                         <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
                             <Sparkles className="h-5 w-5 text-brand-blue" />
                             AI Execution Engine

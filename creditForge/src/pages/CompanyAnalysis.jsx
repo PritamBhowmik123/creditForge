@@ -517,6 +517,12 @@ export default function CompanyAnalysis() {
         { name: 'Net Profit Margin', value: analysis?.netProfitMargin != null ? fmtPct(analysis.netProfitMargin) : '—', status: (analysis?.netProfitMargin ?? 0) >= 8 ? 'good' : 'warning', trend: 'up' },
     ];
 
+    const cardStyle = {
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '16px',
+    };
+
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-8">
             {/* Toast Notification */}
@@ -533,7 +539,7 @@ export default function CompanyAnalysis() {
             )}
 
             {/* Header Profile */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div style={cardStyle} className="p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="absolute right-0 top-0 w-1/3 h-full bg-gradient-to-l from-brand-blue/5 to-transparent pointer-events-none" />
 
                 <div className="flex items-center space-x-5 relative z-10">
@@ -623,7 +629,8 @@ export default function CompanyAnalysis() {
                 {/* Left Column */}
                 <div className="space-y-6">
                     {/* Company Overview */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                    <div style={cardStyle} className="p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-[50px] pointer-events-none" />
                         <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2">
                             <Activity className="h-5 w-5 text-brand-blue" />
                             Company Overview
@@ -676,7 +683,7 @@ export default function CompanyAnalysis() {
                     )}
 
                     {/* Risk Flags */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                    <div style={cardStyle} className="p-6 shadow-sm">
                         <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-brand-yellow" />
                             Intelligence Risk Flags
@@ -709,7 +716,7 @@ export default function CompanyAnalysis() {
                     {/* Key Ratios */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {ratios.map((ratio, idx) => (
-                            <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+                            <div key={idx} style={cardStyle} className="p-5 shadow-sm">
                                 <p className="text-xs font-medium text-slate-400 mb-2">{ratio.name}</p>
                                 <div className="flex items-end justify-between">
                                     <p className="text-2xl font-bold text-white">{ratio.value}</p>

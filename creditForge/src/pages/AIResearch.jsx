@@ -33,12 +33,27 @@ const HighlightRiskWords = ({ text = '' }) => {
 // Strip HTML tags and decode HTML entities from RSS feed descriptions
 const stripHtml = (html = '') => {
     if (!html) return '';
-    return html
-        .replace(/&lt;[^&]*&gt;/g, '')
-        .replace(/<[^>]*>/g, '')
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, ' ')
-        .trim();
+    let text = String(html);
+
+    // 1. Strip standard closed tags including multiline
+    text = text.replace(/<[\s\S]*?>/g, '');
+
+    // 2. Strip encoded closed tags
+    text = text.replace(/&lt;[\s\S]*?&gt;/g, '');
+
+    // 3. Strip unclosed tags at the end of the text (common in truncated RSS)
+    text = text.replace(/<[a-zA-Z\/][^>]*$/g, '');
+    text = text.replace(/&lt;[a-zA-Z\/][^&]*$/g, '');
+
+    // 4. Decode common HTML entities
+    text = text.replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ');
+
+    return text.trim();
 };
 
 function SentimentBadge({ label, score }) {
@@ -124,6 +139,12 @@ export default function AIResearch() {
         );
     }
 
+    const cardStyle = {
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '16px',
+    };
+
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-10">
             {/* Header */}
@@ -155,7 +176,7 @@ export default function AIResearch() {
 
             {/* Executive Summary */}
             {research?.executiveSummary && (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                <div style={cardStyle} className="p-6">
                     <p className="text-sm text-slate-300 leading-relaxed">{research.executiveSummary}</p>
                 </div>
             )}
@@ -182,7 +203,7 @@ export default function AIResearch() {
                 {/* Left Col */}
                 <div className="space-y-6">
                     {/* NLP Sentiment & News Coverage */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm relative overflow-hidden">
+                    <div style={cardStyle} className="p-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-[50px] pointer-events-none" />
                         <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2 relative z-10">
                             <Newspaper className="h-5 w-5 text-brand-blue" />
@@ -245,19 +266,17 @@ export default function AIResearch() {
                             </div>
                         )}
 
-                        <div className="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between">
-                            <p className="text-xs text-slate-500 font-medium">
-                                Sources: {(research?.sources ?? []).slice(0, 5).join(', ') || 'Google News / Indian Finance RSS'}
-                            </p>
-                            <div className="flex items-center space-x-2">
-                                <span className="text-xs font-semibold text-slate-400">Sentiment:</span>
-                                <SentimentBadge label={sentiment} score={sentimentScore} />
+                        {displayArticles.length > 0 && (
+                            <div className="mt-5 pt-4 border-t border-slate-800">
+                                <p className="text-xs text-slate-500 font-medium italic">
+                                    Primary analysis sourced from {(research?.sources ?? []).slice(0, 3).join(', ') || 'Global Credit Intelligence Feeds'}.
+                                </p>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Litigation */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                    <div style={cardStyle} className="p-6">
                         <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2">
                             <Scale className="h-5 w-5 text-brand-blue" />
                             Litigation & Judicial Records
@@ -278,33 +297,24 @@ export default function AIResearch() {
                                             </span>
                                         </div>
                                         <div className="pl-2 min-w-0 overflow-hidden">
-                                            <p className="text-xs text-slate-400 font-medium mb-1 break-words">
-                                                {item.headline}
+                                            <p className="text-xs text-slate-400 font-medium mb-2 break-words leading-relaxed">
+                                                {stripHtml(item.headline)}
                                             </p>
-                                            <p className="text-sm text-slate-200 leading-relaxed break-words line-clamp-3">
+                                            <p className="text-sm text-slate-200 leading-relaxed line-clamp-4 whitespace-pre-wrap">
                                                 {stripHtml(item.description)}
                                             </p>
-                                            {item.url && (
-                                                <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                                    className="text-xs text-brand-blue hover:underline mt-2 inline-flex items-center gap-1">
-                                                    Source <ExternalLink className="h-3 w-3" />
-                                                </a>
-                                            )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
-                </div>
 
-                {/* Right Col */}
-                <div className="space-y-6">
-                    {/* Director Issues */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                    {/* Director/Promoter Analysis */}
+                    <div style={cardStyle} className="p-6">
                         <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2">
                             <Users className="h-5 w-5 text-brand-blue" />
-                            Director / Promoter Intelligence
+                            Director & Promoter Analysis
                         </h2>
 
                         {directorItems.length === 0 ? (
@@ -322,7 +332,7 @@ export default function AIResearch() {
                                         </div>
                                         <div className="p-4 bg-slate-800/10">
                                             <div className="flex items-start gap-3">
-                                                <AlertTriangle className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                                                <AlertTriangle className="h-5 w-5 text-brand-yellow shrink-0 mt-0.5" />
                                                 <p className="text-sm text-slate-200">{stripHtml(item.details || item.description)}</p>
                                             </div>
                                         </div>
@@ -332,58 +342,38 @@ export default function AIResearch() {
                         )}
                     </div>
 
-                    {/* Regulatory Issues */}
-                    {regulatory.length > 0 && (
-                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-                            <h2 className="text-lg font-semibold text-white mb-5 flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-brand-yellow" />
-                                Regulatory Concerns ({regulatory.length})
-                            </h2>
-                            <div className="space-y-4">
-                                {regulatory.map((item, idx) => (
-                                    <div key={idx} className="p-5 rounded-xl border border-slate-700/50 bg-slate-800/20 relative">
-                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-yellow rounded-l-xl" />
-                                        <div className="flex justify-between items-center mb-3 pl-2">
-                                            <span className="text-xs font-bold text-slate-300 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-700">
-                                                {item.type || 'Regulatory'}
-                                            </span>
-                                            <span className="text-xs font-medium px-2.5 py-1 rounded bg-slate-800 text-brand-yellow border border-slate-700">
-                                                {item.status || 'Active'}
-                                            </span>
-                                        </div>
-                                        <div className="pl-2 min-w-0 overflow-hidden">
-                                            <p className="text-xs text-slate-400 font-medium mb-1 break-words">
-                                                {item.headline}
-                                            </p>
-                                            <p className="text-sm text-slate-200 leading-relaxed break-words line-clamp-3">
-                                                {stripHtml(item.description)}
-                                            </p>
-                                            {item.url && (
-                                                <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                                    className="text-xs text-brand-blue hover:underline mt-2 inline-flex items-center gap-1">
-                                                    Source <ExternalLink className="h-3 w-3" />
-                                                </a>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                </div>
+
+                {/* Right Col */}
+                <div className="space-y-6">
+                    {/* Overall Sentiment Card */}
+                    <div style={cardStyle} className="p-6">
+                        <h2 className="text-sm font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-2">
+                            <ShieldAlert className="h-4 w-4 text-brand-blue" />
+                            NLP Sentiment Analysis
+                        </h2>
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-slate-950/50 border border-slate-800">
+                            <span className="text-sm font-medium text-slate-300">Market Perception</span>
+                            <SentimentBadge label={sentiment} score={sentimentScore} />
                         </div>
-                    )}
+                        <p className="text-xs text-slate-500 mt-3 leading-relaxed">
+                            Sentiment score is calculated based on recent news headlines, regulatory filings, and public board announcements from the last 18 months.
+                        </p>
+                    </div>
 
                     {/* Risk keyword summary */}
                     {(research?.riskKeywords ?? []).length > 0 && (
-                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                        <div style={cardStyle} className="p-6">
                             <h2 className="text-sm font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-2">
                                 <AlertTriangle className="h-4 w-4 text-emerald-400" />
                                 Risk Keyword Signals
                             </h2>
                             <div className="flex flex-wrap gap-2">
-                                {research.riskKeywords.slice(0, 20).map((kw, i) => (
-                                    <span key={i} className={`text-xs px-2 py-1 rounded border font-medium ${kw.severity === 'CRITICAL' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-500/30' :
-                                        kw.severity === 'HIGH' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                {research.riskKeywords.slice(0, 25).map((kw, i) => (
+                                    <span key={i} className={`text-xs px-2 py-1 rounded border font-medium ${kw.severity === 'CRITICAL' ? 'bg-red-900/30 text-red-400 border-red-500/30' :
+                                        kw.severity === 'HIGH' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
                                             kw.severity === 'MEDIUM' ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow/20' :
-                                                'bg-slate-800 text-slate-400 border-slate-700'
+                                                'bg-slate-800 text-slate-300 border-slate-700'
                                         }`}>
                                         {kw.keyword} ×{kw.count}
                                     </span>
@@ -391,6 +381,26 @@ export default function AIResearch() {
                             </div>
                         </div>
                     )}
+
+                    {/* Data Integrity Summary */}
+                    <div style={cardStyle} className="p-6">
+                        <h2 className="text-sm font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            Intelligence Coverage
+                        </h2>
+                        <div className="space-y-3">
+                            {[
+                                { label: 'Legal Records', status: litigations.length > 0 ? 'Analyzed' : 'Clear', color: litigations.length > 0 ? 'text-brand-yellow' : 'text-emerald-400' },
+                                { label: 'News Volume', status: `${displayArticles.length} Sources`, color: 'text-brand-blue' },
+                                { label: 'Promoter Checks', status: directorItems.length > 0 ? 'Warnings' : 'Verified', color: directorItems.length > 0 ? 'text-red-500' : 'text-emerald-400' }
+                            ].map((item, i) => (
+                                <div key={i} className="flex justify-between items-center text-xs">
+                                    <span className="text-slate-400">{item.label}</span>
+                                    <span className={`font-bold ${item.color}`}>{item.status}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

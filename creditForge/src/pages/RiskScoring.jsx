@@ -124,6 +124,12 @@ export default function RiskScoring() {
         );
     }
 
+    const cardStyle = {
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '16px',
+    };
+
     const ringColor_ = ringColor(riskLevel);
 
     return (
@@ -151,7 +157,7 @@ export default function RiskScoring() {
                 {/* Left – Score & Breakdown */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Composite Score Card */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm flex items-center justify-between relative overflow-hidden">
+                    <div style={cardStyle} className="p-6 relative overflow-hidden flex items-center justify-between">
                         <div className="absolute -left-10 -top-10 w-40 h-40 bg-brand-yellow/10 rounded-full blur-[40px] pointer-events-none" />
                         <div>
                             <h2 className="text-lg font-semibold text-white mb-1">Composite AI Risk Score</h2>
@@ -190,7 +196,7 @@ export default function RiskScoring() {
                     </div>
 
                     {/* Factor Breakdown Table */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-sm overflow-hidden">
+                    <div style={cardStyle} className="shadow-sm overflow-hidden">
                         <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
                             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                                 <Network className="h-5 w-5 text-brand-blue" />
@@ -253,9 +259,9 @@ export default function RiskScoring() {
 
                 {/* Right Col */}
                 <div className="space-y-6">
-                    {/* Five C's Radar */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm flex flex-col items-center">
-                        <h2 className="text-lg font-semibold text-white mb-2 self-start flex items-center gap-2">
+                    {/* Radar Chart */}
+                    <div style={cardStyle} className="p-6">
+                        <h2 className="text-sm font-bold text-white mb-6 uppercase tracking-wider flex items-center gap-2">
                             <Cpu className="h-5 w-5 text-brand-blue" />
                             Five C's of Credit
                         </h2>
@@ -278,7 +284,7 @@ export default function RiskScoring() {
 
                     {/* Key AI Deductions */}
                     {deductions.length > 0 && (
-                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
+                        <div style={cardStyle} className="p-6">
                             <h2 className="text-sm font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-2">
                                 <ShieldAlert className="h-4 w-4 text-brand-yellow" />
                                 Key AI Deductions

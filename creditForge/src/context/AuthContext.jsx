@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }) => {
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      sessionStorage.clear(); // Clear any previous session state
 
       setUser(user);
       setIsAuthenticated(true);
@@ -90,6 +91,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.clear(); // Clear any previous session state
     setUser(null);
     setIsAuthenticated(false);
   };

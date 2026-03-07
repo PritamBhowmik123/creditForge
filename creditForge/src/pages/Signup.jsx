@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Mail, Lock, User, UserCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
-import logoSvg from '../assets/logo.svg';
+import logoPng from '../assets/logo.png';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -100,7 +100,7 @@ export default function Signup() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <img src={logoSvg} alt="CreditForge" className="h-16 mb-4" />
+          <img src={logoPng} alt="CreditForge" className="h-16 mb-4" />
           <h1 className="text-2xl font-bold text-white">Create your account</h1>
           <p className="text-sm text-slate-500 mt-1">Join CreditForge AI Platform</p>
         </div>

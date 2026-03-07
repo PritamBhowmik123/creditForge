@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, FileUp, Building2, BrainCircuit, Activity, FileText, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import logoSvg from '../assets/logo.svg';
+import logoPng from '../assets/logo.png';
 
 // Persist last viewed application ID across page navigation within the same session
 const LAST_APP_KEY = 'lastAppId';
@@ -78,7 +78,7 @@ export default function Sidebar() {
 
             {/* Logo */}
             <div className="px-5 pt-6 pb-4 flex items-center space-x-2.5">
-                <img src={logoSvg} alt="CreditForge" className="h-8 w-8 flex-shrink-0" />
+                <img src={logoPng} alt="CreditForge" className="h-8 w-8 flex-shrink-0" />
                 <div>
                     <span className="text-[17px] font-bold tracking-tight text-white leading-none">CreditForge</span>
                     <span className="block text-[9px] font-medium tracking-widest uppercase mt-0.5"

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, ShieldCheck, TrendingUp, Zap } from 'lucide-react';
-import logoSvg from '../assets/logo.svg';
+import logoPng from '../assets/logo.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -48,7 +48,7 @@ export default function Login() {
       <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 flex-col justify-between p-12 relative z-10">
         {/* Logo */}
         <div className="flex items-center space-x-3">
-          <img src={logoSvg} alt="CreditForge" className="h-10 w-10" />
+          <img src={logoPng} alt="CreditForge" className="h-10 w-10" />
           <div>
             <span className="text-xl font-bold text-white tracking-tight">CreditForge</span>
             <span className="block text-[10px] font-semibold tracking-widest uppercase mt-0.5" style={{ color: '#c07a20' }}>AI Platform</span>
@@ -93,7 +93,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="flex lg:hidden justify-center mb-8">
-            <img src={logoSvg} alt="CreditForge" className="h-16" />
+            <img src={logoPng} alt="CreditForge" className="h-16" />
           </div>
 
           {/* Card */}
